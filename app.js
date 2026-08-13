@@ -881,7 +881,7 @@
         }
       });
     } catch (err) {
-      showToast("AI 우선순위 분석에 실패해 규칙 기반 점수로 표시합니다: " + err.message, true);
+      console.warn("AI 우선순위 분석을 사용할 수 없어 규칙 기반 점수로 표시합니다:", err.message);
     } finally {
       state.scoring = false;
       updateScoringIndicator();
