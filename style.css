@@ -962,3 +962,18 @@ textarea {
   display: flex;
   gap: var(--space-xs);
 }
+
+/* Mobile overrides — placed last so equal-specificity rules above are beaten by source order */
+@media (max-width: 900px) {
+  .app-header h1,
+  .app-subtitle,
+  .panel-desc {
+    word-break: keep-all;
+  }
+
+  .event-item-detail {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}
