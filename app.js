@@ -20,6 +20,7 @@
   };
 
   const THRESHOLDS_STORAGE_KEY = "vip-pulse-thresholds";
+  const AUTO_REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2분마다 신규 이벤트 자동 감지
 
   function loadThresholds() {
     try {
@@ -1043,6 +1044,14 @@
 
   refreshBtn.addEventListener("click", refreshEvents);
 
+  function startAutoRefresh() {
+    setInterval(() => {
+      const memoFocused = document.activeElement && document.activeElement.id === "detail-memo";
+      if (refreshBtn.disabled || !settingsModalEl.hidden || memoFocused) return;
+      refreshEvents();
+    }, AUTO_REFRESH_INTERVAL_MS);
+  }
+
   async function init() {
     metaDateEl.textContent = formatDisplayDate(TODAY);
 
@@ -1058,6 +1067,7 @@
     renderDetail();
 
     scoreEventsWithAI(state.events);
+    startAutoRefresh();
   }
 
   init();
