@@ -18,7 +18,7 @@ npx serve .
 
 ## 2. Supabase 설정 (배포는 아직 하지 않았습니다 — 아래는 준비 단계 안내)
 
-1. **테이블 생성**: Supabase 프로젝트의 SQL Editor에서 `supabase/sql/event_actions.sql`과 `supabase/sql/event_log.sql` 내용을 순서대로 실행합니다.
+1. **테이블 생성**: Supabase 프로젝트의 SQL Editor에서 `supabase/sql/event_actions.sql`, `supabase/sql/event_log.sql`, `supabase/sql/watchlist_items.sql` 내용을 순서대로 실행합니다.
 2. **Edge Function 배포**:
    ```bash
    supabase functions deploy score-priority

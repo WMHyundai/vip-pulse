@@ -252,6 +252,7 @@
     selectedEventKey: null,
     scoring: false,
     historyByCustomer: {},
+    watchlistRows: [],
   };
 
   // ---- DOM 참조 ----
@@ -262,6 +263,7 @@
   const statusFilterEl = document.getElementById("status-filter");
   const customerSearchEl = document.getElementById("customer-search");
   const topPriorityListEl = document.getElementById("top-priority-list");
+  const watchlistListEl = document.getElementById("watchlist-list");
   const scoringIndicatorEl = document.getElementById("scoring-indicator");
   const eventListEl = document.getElementById("event-list");
   const detailPanelEl = document.getElementById("detail-panel");
@@ -509,7 +511,9 @@
         const days = daysBetween(TODAY, p.maturityDate);
         const nearClass = days >= 0 && days <= THRESHOLDS.MATURITY_DAYS ? "maturity-near" : "";
         const dayLabel = days < 0 ? "만기 경과" : `D-${days}`;
-        return `<li><span class="item-label">${p.name} (${p.amount}억원)</span><span class="item-value ${nearClass}">${p.maturityDate} · ${dayLabel}</span></li>`;
+        const watched = isWatched(customer.id, p.name);
+        const starLabel = watched ? "★" : "☆";
+        return `<li><span class="item-label"><button type="button" class="star-toggle-btn${watched ? " is-watched" : ""}" data-product-name="${p.name}" title="관심종목 ${watched ? "해제" : "등록"}">${starLabel}</button> ${p.name} (${p.amount}억원)</span><span class="item-value ${nearClass}">${p.maturityDate} · ${dayLabel}</span></li>`;
       })
       .join("");
 
@@ -581,6 +585,13 @@
         ${historyHtml}
       </div>
     `;
+
+    detailPanelEl.querySelectorAll(".star-toggle-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const product = customer.products.find((p) => p.name === btn.dataset.productName);
+        if (product) toggleWatchlist(customer, product);
+      });
+    });
 
     const saveBtn = document.getElementById("detail-save-btn");
     saveBtn.addEventListener("click", async () => {
@@ -718,6 +729,105 @@
       .join("");
   }
 
+  // ---- Supabase: 관심 상품(종목) 워치리스트 ----
+  async function loadWatchlist() {
+    const { data, error } = await supabaseClient
+      .from("watchlist_items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      showToast("관심종목을 불러오지 못했습니다: " + error.message, true);
+      return [];
+    }
+    return data || [];
+  }
+
+  async function refreshWatchlist() {
+    state.watchlistRows = await loadWatchlist();
+    renderWatchlistPanel();
+  }
+
+  function isWatched(customerId, productName) {
+    return state.watchlistRows.some((r) => r.customer_id === customerId && r.product_name === productName);
+  }
+
+  async function removeWatchlistItem(customerId, productName) {
+    const { error } = await supabaseClient
+      .from("watchlist_items")
+      .delete()
+      .eq("customer_id", customerId)
+      .eq("product_name", productName);
+    if (error) {
+      showToast("관심종목 해제에 실패했습니다: " + error.message, true);
+      return;
+    }
+    await refreshWatchlist();
+    renderDetail();
+  }
+
+  async function toggleWatchlist(customer, product) {
+    if (isWatched(customer.id, product.name)) {
+      await removeWatchlistItem(customer.id, product.name);
+      return;
+    }
+    const { error } = await supabaseClient.from("watchlist_items").insert({
+      customer_id: customer.id,
+      customer_name: customer.name,
+      product_name: product.name,
+      maturity_date: product.maturityDate,
+      amount: product.amount,
+    });
+    if (error) {
+      showToast("관심종목 등록에 실패했습니다: " + error.message, true);
+      return;
+    }
+    await refreshWatchlist();
+    renderDetail();
+  }
+
+  function renderWatchlistPanel() {
+    watchlistListEl.innerHTML = "";
+
+    if (state.watchlistRows.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "관심종목으로 등록한 상품이 없습니다.";
+      watchlistListEl.appendChild(empty);
+      return;
+    }
+
+    state.watchlistRows.forEach((row) => {
+      const li = document.createElement("li");
+      li.className = "watchlist-item";
+
+      const top = document.createElement("div");
+      top.className = "watchlist-item-top";
+
+      const product = document.createElement("span");
+      product.className = "watchlist-item-product";
+      product.textContent = row.product_name;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "watchlist-remove-btn";
+      removeBtn.title = "관심종목 해제";
+      removeBtn.textContent = "✕";
+      removeBtn.addEventListener("click", () => removeWatchlistItem(row.customer_id, row.product_name));
+
+      top.append(product, removeBtn);
+
+      const meta = document.createElement("span");
+      meta.className = "watchlist-item-customer";
+      const days = row.maturity_date ? daysBetween(TODAY, row.maturity_date) : null;
+      const maturityLabel = days == null ? "" : days < 0 ? " · 만기 경과" : ` · D-${days}`;
+      const amountLabel = row.amount != null ? ` · ${Number(row.amount).toFixed(1)}억원` : "";
+      meta.textContent = `${row.customer_name}${amountLabel}${maturityLabel}`;
+
+      li.append(top, meta);
+      watchlistListEl.appendChild(li);
+    });
+  }
+
   // ---- Claude API 기반 우선순위 스코어링 (Supabase Edge Function 경유) ----
   async function scoreEventsWithAI(events) {
     if (events.length === 0) return;
@@ -797,6 +907,7 @@
     const actionMap = await loadEventActions();
     applyActionMap(actionMap);
     await refreshEventHistory();
+    await refreshWatchlist();
 
     if (!state.events.find((e) => e.eventKey === state.selectedEventKey)) {
       state.selectedEventKey = null;
@@ -920,6 +1031,7 @@
     const actionMap = await loadEventActions();
     applyActionMap(actionMap);
     await refreshEventHistory();
+    await refreshWatchlist();
 
     renderEventList();
     renderDetail();
