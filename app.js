@@ -1,12 +1,10 @@
 // VIP Pulse — VIP 고객 이벤트 관제 대시보드
-// 목업 자산/거래/만기 데이터 기반으로 규칙 기반 이벤트를 감지하고,
-// Supabase Edge Function(score-priority)을 통해 Claude API로 우선순위·추천 문구를 받아온다.
+// 목업 자산/거래/만기 데이터 기반으로 규칙 기반 이벤트를 감지하고, 이벤트 유형 가중치·자산
+// 규모·변동폭을 종합한 규칙 기반 점수로 우선순위를 매긴다.
 // PB의 확인/대응 상태·메모는 Supabase(event_actions 테이블)에 저장해 새로고침 후에도 유지한다.
 
 (function () {
   // TODO: 본인 Supabase 프로젝트의 URL/anon key로 교체하세요.
-  // (Claude-실습 프로젝트와 같은 Supabase 프로젝트를 쓰는 경우, event_actions 테이블과
-  //  score-priority Edge Function만 추가로 만들면 아래 값을 그대로 재사용할 수 있습니다.)
   const SUPABASE_URL = "https://nflqrpxytzkumbtdzclu.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbHFycHh5dHprdW1idGR6Y2x1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0ODU4NjUsImV4cCI6MjEwMjA2MTg2NX0.2YlRRdHalk4gfkQddk1zd9phtP7otzvJaAPdKN-5-Hg";
@@ -207,15 +205,12 @@
       data,
       status: "미확인",
       memo: "",
-      aiScore: null,
-      aiUrgency: null,
-      aiRecommendation: null,
     };
     event.ruleScore = computeRuleScore(event);
     return event;
   }
 
-  // AI 응답이 도착하기 전까지 화면을 채우는 임시 점수 (이벤트 유형 가중치 + 자산 규모 + 변동폭)
+  // 규칙 기반 우선순위 점수 (이벤트 유형 가중치 + 자산 규모 + 변동폭)
   function computeRuleScore(event) {
     const meta = TYPE_META[event.type];
     const sizeFactor = Math.min(event.customerAssetTotal / 10, 12);
@@ -237,7 +232,7 @@
   }
 
   function urgencyOf(event) {
-    return event.aiUrgency || fallbackUrgency(event.ruleScore);
+    return fallbackUrgency(event.ruleScore);
   }
 
   const RULE_RECOMMENDATIONS = {
@@ -252,7 +247,7 @@
   }
 
   function scoreOf(event) {
-    return event.aiScore != null ? event.aiScore : event.ruleScore;
+    return event.ruleScore;
   }
 
   // ---- 애플리케이션 상태 ----
@@ -262,7 +257,6 @@
     statusFilter: "",
     searchQuery: "",
     selectedEventKey: null,
-    scoring: false,
     historyByCustomer: {},
     watchlistRows: [],
   };
@@ -276,7 +270,6 @@
   const customerSearchEl = document.getElementById("customer-search");
   const topPriorityListEl = document.getElementById("top-priority-list");
   const watchlistListEl = document.getElementById("watchlist-list");
-  const scoringIndicatorEl = document.getElementById("scoring-indicator");
   const eventListEl = document.getElementById("event-list");
   const detailPanelEl = document.getElementById("detail-panel");
   const toastEl = document.getElementById("toast");
@@ -332,10 +325,6 @@
     metaHighEl.textContent = `긴급 ${highCount}건`;
   }
 
-  function updateScoringIndicator() {
-    scoringIndicatorEl.hidden = !state.scoring;
-  }
-
   function renderEventList() {
     const list = sortedVisibleEvents();
     eventListEl.innerHTML = "";
@@ -379,7 +368,7 @@
       li.className = `top-priority-card urgency-${urgencyOf(event)} type-${event.type}`;
       if (event.eventKey === state.selectedEventKey) li.classList.add("selected");
 
-      const scoreLabel = event.aiScore != null ? `AI ${event.aiScore}점` : `임시 ${event.ruleScore}점`;
+      const scoreLabel = `${event.ruleScore}점`;
       const rank = document.createElement("span");
       rank.className = "top-priority-rank";
       rank.textContent = `TOP ${i + 1} · ${scoreLabel}`;
@@ -417,7 +406,7 @@
 
     const score = document.createElement("span");
     score.className = "event-item-score";
-    score.textContent = event.aiScore != null ? `AI ${event.aiScore}점` : `임시 ${event.ruleScore}점`;
+    score.textContent = `${event.ruleScore}점`;
 
     top.append(customer, score);
 
@@ -544,13 +533,7 @@
 
     const historyHtml = renderHistoryTimeline(event.customerId);
 
-    const isRecommendationPending = !event.aiRecommendation && state.scoring;
-    const recommendationHtml = event.aiRecommendation
-      ? `<strong>[${event.aiUrgency ? event.aiUrgency.toUpperCase() : ""}]</strong> ${event.aiRecommendation}`
-      : isRecommendationPending
-        ? "AI가 우선순위와 추천 대응 문구를 분석하고 있습니다..."
-        : `<strong>[규칙 기반]</strong> ${ruleRecommendation(event)}`;
-    const recommendationTitle = event.aiRecommendation ? "AI 추천 대응 포인트" : "추천 대응 포인트";
+    const recommendationHtml = ruleRecommendation(event);
 
     detailPanelEl.innerHTML = `
       <div class="detail-section detail-header">
@@ -575,8 +558,8 @@
       </div>
 
       <div class="detail-section">
-        <h3>${recommendationTitle}</h3>
-        <div class="ai-recommendation${isRecommendationPending ? " is-pending" : ""}">${recommendationHtml}</div>
+        <h3>추천 대응 포인트</h3>
+        <div class="recommendation-box">${recommendationHtml}</div>
       </div>
 
       <div class="detail-section">
@@ -850,47 +833,6 @@
     });
   }
 
-  // ---- Claude API 기반 우선순위 스코어링 (Supabase Edge Function 경유) ----
-  async function scoreEventsWithAI(events) {
-    if (events.length === 0) return;
-    state.scoring = true;
-    updateScoringIndicator();
-
-    try {
-      const payload = events.map((e) => ({
-        event_id: e.eventKey,
-        customer_name: e.customerName,
-        asset_total_eok: e.customerAssetTotal,
-        event_type: e.label,
-        detail: e.detail,
-        rule_score: e.ruleScore,
-      }));
-
-      const { data, error } = await supabaseClient.functions.invoke("score-priority", {
-        body: { events: payload },
-      });
-      if (error) throw error;
-
-      const results = (data && data.results) || [];
-      const byId = new Map(results.map((r) => [r.event_id, r]));
-      state.events.forEach((e) => {
-        const r = byId.get(e.eventKey);
-        if (r) {
-          e.aiScore = r.priority_score;
-          e.aiUrgency = r.urgency;
-          e.aiRecommendation = r.recommended_action;
-        }
-      });
-    } catch (err) {
-      console.warn("AI 우선순위 분석을 사용할 수 없어 규칙 기반 점수로 표시합니다:", err.message);
-    } finally {
-      state.scoring = false;
-      updateScoringIndicator();
-      renderEventList();
-      renderDetail();
-    }
-  }
-
   // ---- 새로고침: 목업 데이터를 살짝 변형해 신규 이벤트 발생을 시뮬레이션 ----
   function perturbCustomers(customers) {
     const target = customers[Math.floor(Math.random() * customers.length)];
@@ -944,7 +886,6 @@
     perturbCustomers(state.customers);
     await recomputeEvents();
     refreshBtn.disabled = false;
-    scoreEventsWithAI(state.events);
   }
 
   // ---- 알림 임계치 설정 모달 ----
@@ -1028,7 +969,6 @@
     closeSettingsModal();
     showToast("알림 임계치가 저장되었습니다. 이벤트를 재계산합니다...");
     await recomputeEvents();
-    scoreEventsWithAI(state.events);
   });
 
   // ---- 초기화 ----
@@ -1066,7 +1006,6 @@
     renderEventList();
     renderDetail();
 
-    scoreEventsWithAI(state.events);
     startAutoRefresh();
   }
 

@@ -463,11 +463,6 @@ select,
   min-width: 160px;
 }
 
-.scoring-indicator {
-  font-size: 13px;
-  color: var(--color-primary);
-}
-
 /* Event list */
 .event-list {
   display: flex;
@@ -694,17 +689,12 @@ select,
   fill: var(--color-ink-secondary);
 }
 
-.ai-recommendation {
+.recommendation-box {
   background: var(--color-canvas-soft);
   border-radius: var(--radius-md);
   padding: var(--space-sm);
   font-size: 14px;
   line-height: 1.5;
-}
-
-.ai-recommendation.is-pending {
-  color: var(--color-ink-faint);
-  font-style: italic;
 }
 
 .status-row {

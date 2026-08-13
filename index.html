@@ -44,7 +44,7 @@
     <main class="board">
       <section class="panel event-list-panel">
         <h2 class="panel-title">우선순위 이벤트</h2>
-        <p class="panel-desc">AI가 산정한 우선순위 순으로 정렬됩니다. 상태나 고객명으로 필터링할 수 있습니다.</p>
+        <p class="panel-desc">규칙 기반으로 산정한 우선순위 순으로 정렬됩니다. 상태나 고객명으로 필터링할 수 있습니다.</p>
         <div class="filter-row">
           <label class="field-label search-label">고객 검색
             <input type="search" id="customer-search" class="customer-search-input" placeholder="고객명 입력" />
@@ -57,7 +57,6 @@
               <option value="대응완료">대응완료</option>
             </select>
           </label>
-          <span id="scoring-indicator" class="scoring-indicator" hidden>AI 우선순위 분석 중...</span>
         </div>
         <ul id="event-list" class="event-list">
           <li class="empty-state is-loading">불러오는 중...</li>
