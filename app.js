@@ -375,7 +375,7 @@
 
     top.forEach((event, i) => {
       const li = document.createElement("li");
-      li.className = `top-priority-card urgency-${urgencyOf(event)}`;
+      li.className = `top-priority-card urgency-${urgencyOf(event)} type-${event.type}`;
       if (event.eventKey === state.selectedEventKey) li.classList.add("selected");
 
       const scoreLabel = event.aiScore != null ? `AI ${event.aiScore}점` : `임시 ${event.ruleScore}점`;
@@ -403,7 +403,7 @@
 
   function createEventItem(event) {
     const li = document.createElement("li");
-    li.className = `event-item urgency-${urgencyOf(event)}`;
+    li.className = `event-item urgency-${urgencyOf(event)} type-${event.type}`;
     if (event.eventKey === state.selectedEventKey) li.classList.add("selected");
     li.dataset.eventKey = event.eventKey;
 
@@ -493,8 +493,14 @@
 
     return `
       <svg class="asset-trend-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="최근 ${history.length}개월 자산 추이, 최근값 ${last.total.toFixed(1)}억원">
+        <defs>
+          <linearGradient id="assetTrendGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0075de" stop-opacity="0.32"></stop>
+            <stop offset="100%" stop-color="#0075de" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
         ${gridLines}
-        <path d="${areaPath}" class="chart-area"></path>
+        <path d="${areaPath}" fill="url(#assetTrendGradient)" stroke="none"></path>
         <path d="${linePath}" class="chart-line"></path>
         ${dots}
         ${xLabels}

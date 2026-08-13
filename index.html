@@ -7,20 +7,24 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <header class="app-header">
-      <span class="badge-pill">VIP PULSE</span>
+  <header class="app-header">
+    <div class="app-header-glow app-header-glow-1"></div>
+    <div class="app-header-glow app-header-glow-2"></div>
+    <div class="app-header-inner">
+      <span class="badge-pill badge-pill-inverted">VIP PULSE</span>
       <h1>VIP 고객 이벤트 관제 대시보드</h1>
       <p class="app-subtitle">PB가 오늘 가장 먼저 확인해야 할 고객과 대응 포인트를 한눈에 확인하세요.</p>
       <div class="meta">
         <span class="meta-date" id="meta-date"></span>
-        <span class="badge-pill" id="meta-total">전체 이벤트 0건</span>
+        <span class="badge-pill badge-pill-inverted" id="meta-total">전체 이벤트 0건</span>
         <span class="badge-pill badge-warning" id="meta-high">긴급 0건</span>
         <button class="btn-secondary" id="refresh-btn" type="button">새로고침</button>
         <button class="btn-secondary" id="settings-btn" type="button">알림 설정</button>
       </div>
-    </header>
+    </div>
+  </header>
 
+  <div class="app">
     <section class="panel top-priority-panel">
       <h2 class="panel-title">오늘의 우선순위 Top 3</h2>
       <p class="panel-desc">아직 대응하지 않은 이벤트 중 우선순위가 가장 높은 고객입니다.</p>
