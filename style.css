@@ -689,6 +689,24 @@ select,
   fill: var(--color-ink-secondary);
 }
 
+@keyframes detail-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-fade {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  animation: detail-fade-in 0.22s ease-out;
+}
+
 .recommendation-box {
   background: var(--color-canvas-soft);
   border-radius: var(--radius-md);

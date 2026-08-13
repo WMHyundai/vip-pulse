@@ -131,7 +131,7 @@
     {
       id: "C7",
       name: "한소영",
-      assetHistory: buildAssetHistory([96.5, 96.1, 95.8, 95.5, 95.2, 94.8]),
+      assetHistory: buildAssetHistory([96.5, 96.1, 95.8, 95.5, 95.2, 72.0]),
       products: [{ name: "정기예금 5호", maturityDate: formatDate(addDays(TODAY, 150)), amount: 25 }],
       avgTransactionAmount: 0.8,
       transactions: [{ date: formatDate(addDays(TODAY, -5)), type: "입금", amount: 0.9 }],
@@ -235,15 +235,30 @@
     return fallbackUrgency(event.ruleScore);
   }
 
-  const RULE_RECOMMENDATIONS = {
-    asset_drop: "자산이 큰 폭으로 감소했습니다. 이탈 징후일 수 있으니 오늘 중 연락해 사유를 파악하고 필요한 조치를 안내하세요.",
-    asset_rise: "자산이 크게 증가했습니다. 신규 자금 유입 가능성이 있으니 추가 상품 상담 기회로 활용해 보세요.",
-    maturity: "보유 상품 만기가 임박했습니다. 재예치 또는 후속 상품 상담을 제안하세요.",
-    anomaly_txn: "평소와 다른 규모의 거래가 발생했습니다. 사유를 확인하고 필요시 고객에게 연락하세요.",
+  const RULE_RECOMMENDATION_BUILDERS = {
+    asset_drop: (event) => {
+      const pct = Math.abs(event.data.pct * 100);
+      const severity = pct >= 15 ? "매우 큰 폭으로" : "큰 폭으로";
+      return `${event.customerName} 고객의 자산이 최근 1개월간 ${pct.toFixed(1)}% ${severity} 감소했습니다. 이탈 징후일 수 있으니 오늘 중 연락해 사유를 파악하고 필요한 조치를 안내하세요.`;
+    },
+    asset_rise: (event) => {
+      const pct = (event.data.pct * 100).toFixed(1);
+      return `${event.customerName} 고객의 자산이 최근 1개월간 ${pct}% 증가했습니다. 신규 자금 유입 가능성이 있으니 추가 상품 상담 기회로 활용해 보세요.`;
+    },
+    maturity: (event) => {
+      const { days, product } = event.data;
+      const urgency = days <= 2 ? "임박했으니 즉시" : "다가오니 이번 주 중";
+      return `${event.customerName} 고객의 ${product.name}(${product.amount}억원)이 D-${days}로 만기가 ${urgency} 재예치 또는 후속 상품 상담을 제안하세요.`;
+    },
+    anomaly_txn: (event) => {
+      const { multiplier, txn } = event.data;
+      return `${event.customerName} 고객에게 평소 대비 ${multiplier.toFixed(1)}배 규모의 ${txn.type}(${txn.amount.toFixed(1)}억원)이 발생했습니다. 사유를 확인하고 필요시 고객에게 연락하세요.`;
+    },
   };
 
   function ruleRecommendation(event) {
-    return RULE_RECOMMENDATIONS[event.type] || "이벤트 상세를 확인하고 필요한 대응을 진행하세요.";
+    const builder = RULE_RECOMMENDATION_BUILDERS[event.type];
+    return builder ? builder(event) : "이벤트 상세를 확인하고 필요한 대응을 진행하세요.";
   }
 
   function scoreOf(event) {
@@ -501,7 +516,7 @@
   function renderDetail() {
     const event = state.events.find((e) => e.eventKey === state.selectedEventKey);
     if (!event) {
-      detailPanelEl.innerHTML = '<p class="empty-state">왼쪽 목록에서 이벤트를 선택하면 상세 정보가 표시됩니다.</p>';
+      detailPanelEl.innerHTML = '<div class="detail-fade"><p class="empty-state">왼쪽 목록에서 이벤트를 선택하면 상세 정보가 표시됩니다.</p></div>';
       return;
     }
 
@@ -536,6 +551,7 @@
     const recommendationHtml = ruleRecommendation(event);
 
     detailPanelEl.innerHTML = `
+      <div class="detail-fade">
       <div class="detail-section detail-header">
         <div>
           <h2>${customer.name}</h2>
@@ -588,6 +604,7 @@
       <div class="detail-section">
         <h3>과거 이벤트 및 대응 이력</h3>
         ${historyHtml}
+      </div>
       </div>
     `;
 
