@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIP Pulse — 고객 이벤트 관제 대시보드</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <span class="badge-pill">VIP PULSE</span>
+      <h1>VIP 고객 이벤트 관제 대시보드</h1>
+      <p class="app-subtitle">PB가 오늘 가장 먼저 확인해야 할 고객과 대응 포인트를 한눈에 확인하세요.</p>
+      <div class="meta">
+        <span class="meta-date" id="meta-date"></span>
+        <span class="badge-pill" id="meta-total">전체 이벤트 0건</span>
+        <span class="badge-pill badge-warning" id="meta-high">긴급 0건</span>
+        <button class="btn-secondary" id="refresh-btn" type="button">새로고침</button>
+        <button class="btn-secondary" id="settings-btn" type="button">알림 설정</button>
+      </div>
+    </header>
+
+    <section class="panel top-priority-panel">
+      <h2 class="panel-title">오늘의 우선순위 Top 3</h2>
+      <p class="panel-desc">아직 대응하지 않은 이벤트 중 우선순위가 가장 높은 고객입니다.</p>
+      <ul id="top-priority-list" class="top-priority-list">
+        <li class="empty-state is-loading">불러오는 중...</li>
+      </ul>
+    </section>
+
+    <main class="board">
+      <section class="panel event-list-panel">
+        <h2 class="panel-title">우선순위 이벤트</h2>
+        <p class="panel-desc">AI가 산정한 우선순위 순으로 정렬됩니다. 상태나 고객명으로 필터링할 수 있습니다.</p>
+        <div class="filter-row">
+          <label class="field-label search-label">고객 검색
+            <input type="search" id="customer-search" class="customer-search-input" placeholder="고객명 입력" />
+          </label>
+          <label class="field-label status-filter-label">상태
+            <select id="status-filter" class="status-filter-select">
+              <option value="">전체 상태</option>
+              <option value="미확인">미확인</option>
+              <option value="확인함">확인함</option>
+              <option value="대응완료">대응완료</option>
+            </select>
+          </label>
+          <span id="scoring-indicator" class="scoring-indicator" hidden>AI 우선순위 분석 중...</span>
+        </div>
+        <ul id="event-list" class="event-list">
+          <li class="empty-state is-loading">불러오는 중...</li>
+        </ul>
+      </section>
+
+      <section class="panel detail-panel" id="detail-panel">
+        <p class="empty-state">왼쪽 목록에서 이벤트를 선택하면 상세 정보가 표시됩니다.</p>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>* 고객·자산·거래 데이터는 목업(더미)입니다. 우선순위 점수와 추천 문구는 Claude API가 실시간으로 생성합니다.</p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <div id="settings-modal" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h2 id="settings-title">알림 임계치 설정</h2>
+      <p class="panel-desc">이벤트를 감지할 조건을 조정합니다. 저장하면 즉시 재계산됩니다.</p>
+
+      <div class="settings-field">
+        <label for="setting-asset-pct">자산 변동률 임계치 (%)</label>
+        <input type="number" id="setting-asset-pct" min="1" max="100" step="1" />
+      </div>
+      <div class="settings-field">
+        <label for="setting-maturity-days">만기 임박 기준 (D-일)</label>
+        <input type="number" id="setting-maturity-days" min="1" max="90" step="1" />
+      </div>
+      <div class="settings-field">
+        <label for="setting-txn-multiplier">이상 거래 배수 (평소 대비 N배)</label>
+        <input type="number" id="setting-txn-multiplier" min="1" max="20" step="0.5" />
+      </div>
+      <div class="settings-field">
+        <label for="setting-txn-lookback">이상 거래 조회 기간 (최근 N일)</label>
+        <input type="number" id="setting-txn-lookback" min="1" max="30" step="1" />
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn-secondary" id="settings-reset-btn" type="button">기본값으로</button>
+        <div class="settings-actions-right">
+          <button class="btn-secondary" id="settings-cancel-btn" type="button">취소</button>
+          <button class="btn-primary" id="settings-save-btn" type="button">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
