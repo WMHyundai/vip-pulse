@@ -239,6 +239,17 @@
     return event.aiUrgency || fallbackUrgency(event.ruleScore);
   }
 
+  const RULE_RECOMMENDATIONS = {
+    asset_drop: "자산이 큰 폭으로 감소했습니다. 이탈 징후일 수 있으니 오늘 중 연락해 사유를 파악하고 필요한 조치를 안내하세요.",
+    asset_rise: "자산이 크게 증가했습니다. 신규 자금 유입 가능성이 있으니 추가 상품 상담 기회로 활용해 보세요.",
+    maturity: "보유 상품 만기가 임박했습니다. 재예치 또는 후속 상품 상담을 제안하세요.",
+    anomaly_txn: "평소와 다른 규모의 거래가 발생했습니다. 사유를 확인하고 필요시 고객에게 연락하세요.",
+  };
+
+  function ruleRecommendation(event) {
+    return RULE_RECOMMENDATIONS[event.type] || "이벤트 상세를 확인하고 필요한 대응을 진행하세요.";
+  }
+
   function scoreOf(event) {
     return event.aiScore != null ? event.aiScore : event.ruleScore;
   }
@@ -526,9 +537,13 @@
 
     const historyHtml = renderHistoryTimeline(event.customerId);
 
+    const isRecommendationPending = !event.aiRecommendation && state.scoring;
     const recommendationHtml = event.aiRecommendation
       ? `<strong>[${event.aiUrgency ? event.aiUrgency.toUpperCase() : ""}]</strong> ${event.aiRecommendation}`
-      : "AI가 우선순위와 추천 대응 문구를 분석하고 있습니다...";
+      : isRecommendationPending
+        ? "AI가 우선순위와 추천 대응 문구를 분석하고 있습니다..."
+        : `<strong>[규칙 기반]</strong> ${ruleRecommendation(event)}`;
+    const recommendationTitle = event.aiRecommendation ? "AI 추천 대응 포인트" : "추천 대응 포인트";
 
     detailPanelEl.innerHTML = `
       <div class="detail-section detail-header">
@@ -553,8 +568,8 @@
       </div>
 
       <div class="detail-section">
-        <h3>AI 추천 대응 포인트</h3>
-        <div class="ai-recommendation${event.aiRecommendation ? "" : " is-pending"}">${recommendationHtml}</div>
+        <h3>${recommendationTitle}</h3>
+        <div class="ai-recommendation${isRecommendationPending ? " is-pending" : ""}">${recommendationHtml}</div>
       </div>
 
       <div class="detail-section">
