@@ -8,3 +8,4 @@ Thumbs.db
 
 .vercel
 .env*
+supabase/.temp/
