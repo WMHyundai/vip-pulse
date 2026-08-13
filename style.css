@@ -434,6 +434,33 @@ body {
   flex-wrap: wrap;
 }
 
+.list-mode-tabs {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.list-mode-tab {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  background: var(--color-canvas-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  padding: 6px 16px;
+  cursor: pointer;
+}
+
+.list-mode-tab.is-active {
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.status-filter-label.is-hidden {
+  display: none;
+}
+
 .field-label {
   display: flex;
   flex-direction: column;

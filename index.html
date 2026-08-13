@@ -44,12 +44,16 @@
     <main class="board">
       <section class="panel event-list-panel">
         <h2 class="panel-title">우선순위 이벤트</h2>
-        <p class="panel-desc">규칙 기반으로 산정한 우선순위 순으로 정렬됩니다. 상태나 고객명으로 필터링할 수 있습니다.</p>
+        <div class="list-mode-tabs" role="tablist">
+          <button type="button" class="list-mode-tab is-active" id="mode-tab-events" data-mode="events">이벤트 목록</button>
+          <button type="button" class="list-mode-tab" id="mode-tab-customers" data-mode="customers">전체 고객</button>
+        </div>
+        <p class="panel-desc" id="event-list-desc">규칙 기반으로 산정한 우선순위 순으로 정렬됩니다. 상태나 고객명으로 필터링할 수 있습니다.</p>
         <div class="filter-row">
           <label class="field-label search-label">고객 검색
             <input type="search" id="customer-search" class="customer-search-input" placeholder="고객명 입력" />
           </label>
-          <label class="field-label status-filter-label">상태
+          <label class="field-label status-filter-label" id="status-filter-label">상태
             <select id="status-filter" class="status-filter-select">
               <option value="">전체 상태</option>
               <option value="미확인">미확인</option>

@@ -136,6 +136,14 @@
       avgTransactionAmount: 0.8,
       transactions: [{ date: formatDate(addDays(TODAY, -5)), type: "입금", amount: 0.9 }],
     },
+    {
+      id: "C8",
+      name: "윤재호",
+      assetHistory: buildAssetHistory([61.0, 61.2, 60.8, 61.1, 60.9, 61.3]),
+      products: [{ name: "정기예금 6호", maturityDate: formatDate(addDays(TODAY, 90)), amount: 18 }],
+      avgTransactionAmount: 0.6,
+      transactions: [{ date: formatDate(addDays(TODAY, -4)), type: "입금", amount: 0.7 }],
+    },
   ];
 
   function cloneCustomers(customers) {
@@ -272,6 +280,8 @@
     statusFilter: "",
     searchQuery: "",
     selectedEventKey: null,
+    selectedCustomerId: null,
+    listMode: "events", // "events" | "customers"
     historyByCustomer: {},
     watchlistRows: [],
   };
@@ -282,6 +292,10 @@
   const metaHighEl = document.getElementById("meta-high");
   const refreshBtn = document.getElementById("refresh-btn");
   const statusFilterEl = document.getElementById("status-filter");
+  const statusFilterLabelEl = document.getElementById("status-filter-label");
+  const eventListDescEl = document.getElementById("event-list-desc");
+  const modeTabEventsEl = document.getElementById("mode-tab-events");
+  const modeTabCustomersEl = document.getElementById("mode-tab-customers");
   const customerSearchEl = document.getElementById("customer-search");
   const topPriorityListEl = document.getElementById("top-priority-list");
   const watchlistListEl = document.getElementById("watchlist-list");
@@ -341,21 +355,82 @@
   }
 
   function renderEventList() {
-    const list = sortedVisibleEvents();
     eventListEl.innerHTML = "";
 
-    if (list.length === 0) {
-      const empty = document.createElement("li");
-      empty.className = "empty-state";
-      empty.textContent =
-        state.statusFilter || state.searchQuery ? "조건에 맞는 이벤트가 없습니다." : "감지된 이벤트가 없습니다.";
-      eventListEl.appendChild(empty);
+    if (state.listMode === "customers") {
+      renderCustomerDirectoryItems();
     } else {
-      list.forEach((event) => eventListEl.appendChild(createEventItem(event)));
+      const list = sortedVisibleEvents();
+      if (list.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "empty-state";
+        empty.textContent =
+          state.statusFilter || state.searchQuery ? "조건에 맞는 이벤트가 없습니다." : "감지된 이벤트가 없습니다.";
+        eventListEl.appendChild(empty);
+      } else {
+        list.forEach((event) => eventListEl.appendChild(createEventItem(event)));
+      }
     }
 
     updateMetaCounts();
     renderTopPriority();
+  }
+
+  function visibleCustomers() {
+    const q = state.searchQuery.trim().toLowerCase();
+    return state.customers
+      .filter((c) => !q || c.name.toLowerCase().includes(q))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }
+
+  function renderCustomerDirectoryItems() {
+    const list = visibleCustomers();
+
+    if (list.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "검색 결과가 없습니다.";
+      eventListEl.appendChild(empty);
+      return;
+    }
+
+    list.forEach((customer) => eventListEl.appendChild(createCustomerDirectoryItem(customer)));
+  }
+
+  function createCustomerDirectoryItem(customer) {
+    const li = document.createElement("li");
+    li.className = "event-item";
+    if (!state.selectedEventKey && customer.id === state.selectedCustomerId) li.classList.add("selected");
+
+    const top = document.createElement("div");
+    top.className = "event-item-top";
+
+    const name = document.createElement("span");
+    name.className = "event-item-customer";
+    name.textContent = customer.name;
+
+    const asset = document.createElement("span");
+    asset.className = "event-item-score";
+    const total = customer.assetHistory[customer.assetHistory.length - 1].total;
+    asset.textContent = `${total.toFixed(1)}억원`;
+
+    top.append(name, asset);
+
+    const summary = document.createElement("div");
+    summary.className = "event-item-detail";
+    const activeCount = state.events.filter((e) => e.customerId === customer.id).length;
+    summary.textContent = activeCount > 0 ? `활성 이벤트 ${activeCount}건` : "활성 이벤트 없음";
+
+    li.append(top, summary);
+    li.addEventListener("click", () => {
+      state.selectedEventKey = null;
+      state.selectedCustomerId = customer.id;
+      renderEventList();
+      renderDetail();
+    });
+
+    return li;
   }
 
   function topPriorityEvents(n) {
@@ -399,6 +474,7 @@
       li.append(rank, customer, label);
       li.addEventListener("click", () => {
         state.selectedEventKey = event.eventKey;
+        state.selectedCustomerId = null;
         renderEventList();
         renderDetail();
       });
@@ -440,6 +516,7 @@
     li.append(top, label, detail, status);
     li.addEventListener("click", () => {
       state.selectedEventKey = event.eventKey;
+      state.selectedCustomerId = null;
       renderEventList();
       renderDetail();
     });
@@ -513,14 +590,7 @@
       </svg>`;
   }
 
-  function renderDetail() {
-    const event = state.events.find((e) => e.eventKey === state.selectedEventKey);
-    if (!event) {
-      detailPanelEl.innerHTML = '<div class="detail-fade"><p class="empty-state">왼쪽 목록에서 이벤트를 선택하면 상세 정보가 표시됩니다.</p></div>';
-      return;
-    }
-
-    const customer = state.customers.find((c) => c.id === event.customerId);
+  function buildCustomerHeaderHtml(customer) {
     const hist = customer.assetHistory;
     const prev = hist[hist.length - 2];
     const curr = hist[hist.length - 1];
@@ -528,30 +598,7 @@
     const trendClass = pct >= 0 ? "trend-up" : "trend-down";
     const trendSign = pct >= 0 ? "+" : "";
 
-    const productsHtml = customer.products
-      .map((p) => {
-        const days = daysBetween(TODAY, p.maturityDate);
-        const nearClass = days >= 0 && days <= THRESHOLDS.MATURITY_DAYS ? "maturity-near" : "";
-        const dayLabel = days < 0 ? "만기 경과" : `D-${days}`;
-        const watched = isWatched(customer.id, p.name);
-        const starLabel = watched ? "★" : "☆";
-        return `<li><span class="item-label"><button type="button" class="star-toggle-btn${watched ? " is-watched" : ""}" data-product-name="${p.name}" title="관심종목 ${watched ? "해제" : "등록"}">${starLabel}</button> ${p.name} (${p.amount}억원)</span><span class="item-value ${nearClass}">${p.maturityDate} · ${dayLabel}</span></li>`;
-      })
-      .join("");
-
-    const txnHtml = customer.transactions
-      .map(
-        (t) =>
-          `<li><span class="item-label">${t.type}</span><span class="item-value">${t.amount.toFixed(1)}억원 · ${t.date}</span></li>`
-      )
-      .join("");
-
-    const historyHtml = renderHistoryTimeline(event.customerId);
-
-    const recommendationHtml = ruleRecommendation(event);
-
-    detailPanelEl.innerHTML = `
-      <div class="detail-fade">
+    return `
       <div class="detail-section detail-header">
         <div>
           <h2>${customer.name}</h2>
@@ -566,7 +613,48 @@
       <div class="detail-section">
         <h3>자산 추이 (최근 ${hist.length}개월)</h3>
         ${renderAssetTrendChart(hist)}
-      </div>
+      </div>`;
+  }
+
+  function buildProductsHtml(customer) {
+    return customer.products
+      .map((p) => {
+        const days = daysBetween(TODAY, p.maturityDate);
+        const nearClass = days >= 0 && days <= THRESHOLDS.MATURITY_DAYS ? "maturity-near" : "";
+        const dayLabel = days < 0 ? "만기 경과" : `D-${days}`;
+        const watched = isWatched(customer.id, p.name);
+        const starLabel = watched ? "★" : "☆";
+        return `<li><span class="item-label"><button type="button" class="star-toggle-btn${watched ? " is-watched" : ""}" data-product-name="${p.name}" title="관심종목 ${watched ? "해제" : "등록"}">${starLabel}</button> ${p.name} (${p.amount}억원)</span><span class="item-value ${nearClass}">${p.maturityDate} · ${dayLabel}</span></li>`;
+      })
+      .join("");
+  }
+
+  function buildTxnHtml(customer) {
+    return customer.transactions
+      .map(
+        (t) =>
+          `<li><span class="item-label">${t.type}</span><span class="item-value">${t.amount.toFixed(1)}억원 · ${t.date}</span></li>`
+      )
+      .join("");
+  }
+
+  function attachStarToggleListeners(customer) {
+    detailPanelEl.querySelectorAll(".star-toggle-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const product = customer.products.find((p) => p.name === btn.dataset.productName);
+        if (product) toggleWatchlist(customer, product);
+      });
+    });
+  }
+
+  function renderEventDetail(event) {
+    const customer = state.customers.find((c) => c.id === event.customerId);
+    const historyHtml = renderHistoryTimeline(event.customerId);
+    const recommendationHtml = ruleRecommendation(event);
+
+    detailPanelEl.innerHTML = `
+      <div class="detail-fade">
+      ${buildCustomerHeaderHtml(customer)}
 
       <div class="detail-section">
         <h3>이벤트 상세</h3>
@@ -593,12 +681,12 @@
 
       <div class="detail-section">
         <h3>보유 상품 및 만기 일정</h3>
-        <ul class="plain-list">${productsHtml}</ul>
+        <ul class="plain-list">${buildProductsHtml(customer)}</ul>
       </div>
 
       <div class="detail-section">
         <h3>최근 거래 내역</h3>
-        <ul class="plain-list">${txnHtml}</ul>
+        <ul class="plain-list">${buildTxnHtml(customer)}</ul>
       </div>
 
       <div class="detail-section">
@@ -608,12 +696,7 @@
       </div>
     `;
 
-    detailPanelEl.querySelectorAll(".star-toggle-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const product = customer.products.find((p) => p.name === btn.dataset.productName);
-        if (product) toggleWatchlist(customer, product);
-      });
-    });
+    attachStarToggleListeners(customer);
 
     const saveBtn = document.getElementById("detail-save-btn");
     saveBtn.addEventListener("click", async () => {
@@ -642,6 +725,50 @@
         showToast("저장되었습니다.");
       }
     });
+  }
+
+  function renderCustomerOnlyDetail(customer) {
+    const historyHtml = renderHistoryTimeline(customer.id);
+
+    detailPanelEl.innerHTML = `
+      <div class="detail-fade">
+      ${buildCustomerHeaderHtml(customer)}
+
+      <div class="detail-section">
+        <h3>보유 상품 및 만기 일정</h3>
+        <ul class="plain-list">${buildProductsHtml(customer)}</ul>
+      </div>
+
+      <div class="detail-section">
+        <h3>최근 거래 내역</h3>
+        <ul class="plain-list">${buildTxnHtml(customer)}</ul>
+      </div>
+
+      <div class="detail-section">
+        <h3>과거 이벤트 및 대응 이력</h3>
+        ${historyHtml}
+      </div>
+      </div>
+    `;
+
+    attachStarToggleListeners(customer);
+  }
+
+  function renderDetail() {
+    const event = state.events.find((e) => e.eventKey === state.selectedEventKey);
+    if (event) {
+      renderEventDetail(event);
+      return;
+    }
+
+    const customer = state.customers.find((c) => c.id === state.selectedCustomerId);
+    if (customer) {
+      renderCustomerOnlyDetail(customer);
+      return;
+    }
+
+    detailPanelEl.innerHTML =
+      '<div class="detail-fade"><p class="empty-state">왼쪽 목록에서 이벤트를 선택하거나, "전체 고객" 탭에서 고객을 선택하면 상세 정보가 표시됩니다.</p></div>';
   }
 
   // ---- Supabase: PB 확인/대응 상태 및 메모 ----
@@ -989,6 +1116,22 @@
   });
 
   // ---- 초기화 ----
+  function setListMode(mode) {
+    if (state.listMode === mode) return;
+    state.listMode = mode;
+    modeTabEventsEl.classList.toggle("is-active", mode === "events");
+    modeTabCustomersEl.classList.toggle("is-active", mode === "customers");
+    statusFilterLabelEl.classList.toggle("is-hidden", mode === "customers");
+    eventListDescEl.textContent =
+      mode === "customers"
+        ? "전체 고객을 이름으로 검색해 자산·보유 상품·거래 내역을 조회할 수 있습니다."
+        : "규칙 기반으로 산정한 우선순위 순으로 정렬됩니다. 상태나 고객명으로 필터링할 수 있습니다.";
+    renderEventList();
+  }
+
+  modeTabEventsEl.addEventListener("click", () => setListMode("events"));
+  modeTabCustomersEl.addEventListener("click", () => setListMode("customers"));
+
   statusFilterEl.addEventListener("change", () => {
     state.statusFilter = statusFilterEl.value;
     renderEventList();
